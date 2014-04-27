@@ -118,7 +118,7 @@ if (argc != 2 and argc != 3):
 fontfile = None
 
 try:
-    fontfile = open(filename, "r")
+    fontfile = open(filename, "rb")
 except:
     None
 
@@ -164,4 +164,37 @@ if argc == 3:
         exit()
 
     print ("- OK: read: '" + str(bytesread) + "' bytes from file")
+
+    ttf_allbytes[tab_fsType_pos] = 0
+    ttf_allbytes[tab_fsType_pos + 1] = wanted_fsType
+
+    fontfile.close()
+
+    try:
+        fontfile = open(filename, "wb")
+    except:
+        None
+
+    if not fontfile:
+        print "Error: Could not open fontfile " + filename + " for reading"
+        exit()
+
+    byte_string = ("".join(chr(b) for b in ttf_allbytes))
+    byteswritten = len(byte_string)
+
+    fontfile.write(byte_string)
+
+    if byteswritten != ttf_filesize:
+        print ("\nError: Could not write " + str(ttf_filesize) + " bytes to fontfile (written: " + str(byteswritten) + ")")
+        fontfile.close()
+        exit()
+
+    print("- OK: written: '" + str(byteswritten) + "' bytes to file")
+
+    fontfile.close()
+
+else:
+    print("\nNothing changed! - No new fsType value specified")
+    print("Run program without any arguments to get usage hints")
+
 
