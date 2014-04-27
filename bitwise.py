@@ -47,7 +47,7 @@ def writeBE2(value, outFile):
 def readLE4(inFile):
     retval = None
     fourbytes = fileBytes(inFile, 4)
-    raw = array('B',fourbytes)
+    raw = array('c',fourbytes)
 
     retval = (raw[3]<<24) | (raw[2]<<16)  | (raw[1]<<8)  | (raw[0])
     return retval
@@ -84,9 +84,9 @@ def fileBytes(inFile, length):
     bytes = [ord(b) for b in inFile.read(length)]
     return bytes
 
-inFile = readFile()
-print readLE4(inFile)
-print readLE2(inFile)
-print readBE4(inFile)
-print readBE2(inFile)
-inFile.close()
+# inFile = readFile()
+# print readLE4(inFile)
+# print readLE2(inFile)
+# print readBE4(inFile)
+# print readBE2(inFile)
+# inFile.close()
