@@ -1,6 +1,13 @@
 import sys
 from bitwise import *
 
+filename = ""
+fontfile = None
+tab_fsType_pos = 0
+tab_fsType = 0
+ttf_filesize = 0
+ttf_allbytes = None
+
 def osbytes(inFile):
     bytes = fileBytes(inFile, 4)
     if bytes[0] == 79 and bytes[1] == 83 and bytes[2] == 47 and bytes[3] == 50:
@@ -9,15 +16,17 @@ def osbytes(inFile):
         return 0
 
 def readHeader():
-    tabtag = array('c',[0,0,0,0,0])
+    global tab_fsType_pos
+    global tab_fsType
+    global ttf_filesize
 
     version = readBE4(fontfile)
-    print ("- Fileformat version: hex: '" + str(version) + "'\n")
+    print ("- Fileformat version: hex: '" + hex(version) + "'")
     if version != 0x00010000:
         print ("Error: Fileformat version must be '0x00010000'\n")
         return 1
     numtables = readBE2(fontfile)
-    print ("- Number of Infotables: " + numtables + "\n")
+    print ("- Number of Infotables: " + str(numtables) + "")
     if numtables <= 9:
         print ("Error: numtables must be greater than '9'\n")
         return 1
@@ -31,12 +40,14 @@ def readHeader():
 
     while (tables_checked < numtables and found_os2_table == 0):
         found_os2_table = osbytes(fontfile)
+        if found_os2_table == 1:
+            print "- Found 'OS/2' table"
         dummy = readBE4(fontfile)
         taboffset = readBE4(fontfile);  # we need THIS!
         dummy = readBE4(fontfile)
         tables_checked = tables_checked +1
 
-    print ("- Tableoffset: hex:'" + taboffset + "'\n")
+    print ("- Tableoffset: hex:'" + hex(taboffset) + "'")
 
     fontfile.seek(taboffset)
     tabversion = readBE2(fontfile)
@@ -45,7 +56,7 @@ def readHeader():
         if tabversion == 0x0000 or tabversion == 0x0002:
             print ("Warning: OS/2 tableversion is not '0x0001' but '0x0000'\n")
         else:
-            print ("Error: OS/2 tableversion must be 0, 1 or 2 and is hex:" + tabversion + "\n")
+            print ("Error: OS/2 tableversion must be 0, 1 or 2 and is hex:" + str(tabversion) + "\n")
             return 1
 
     dummy = readBE2(fontfile)  # average char width - not needed
@@ -53,15 +64,31 @@ def readHeader():
     dummy = readBE2(fontfile)  # widht class - not needed
 
     tab_fsType_pos = fontfile.tell()    # remember 0-based position of fsType (16 bit)
-
     tab_fsType = readBE2(fontfile)   # <<<--- We will change THIS !!!
 
-    printf ("- Curret fsType: hex:'" + tab_fsType + "'\n")
+    print ("- Curret fsType: hex:'" + hex(tab_fsType) + "'")
 
     fontfile.seek(0, 2)
+
     ttf_filesize = fontfile.tell()
 
     return 0
+
+def printlicencebits(fstype):
+    if fstype == 0x0000:
+        print ("       0: embedding for permanent installation allowed");
+
+    if fstype & 0x0001 == 0x0001:
+        print ("       1: reserved - not to be used, must be zero!");
+
+    if fstype & 0x0002:
+        print ("       2: embedding restricted (not allowed, at all!)");
+
+    if fstype & 0x0004:
+        print ("       4: embedding for preview & printing allowed");
+
+    if fstype & 0x0008:
+        print ("       8: embedding for editing allowed");
 
 
 
@@ -99,23 +126,42 @@ if not fontfile:
     print "Error: Could not open fontfile " + filename + " for reading"
     exit()
 
-# import struct
-# print struct.unpack(">I", ''.join([chr(x) for x in fontfile.read(4)[:-1]]))
-# print struct.unpack("i", "\x00\x00\x00\x00")
-
-bytes = [ord(b) for b in fontfile.read()]
-for byte in bytes:
-    if byte == 79:
-        print byte
-    if byte == 83:
-        print byte
-    if byte == 47:
-        print byte
-    if byte == 50:
-        print byte
-
 print "- Opened: " + filename + "\n"
 
 if readHeader() == 1:
     fontfile.close()
     exit()
+
+if argc == 3:
+    wanted_fsType = int(argv[2])
+    print ("- Wanted fsType: hex:'" + hex(wanted_fsType) + "'")
+    printlicencebits(wanted_fsType)
+
+    if wanted_fsType & 0x0001:
+        print ("\nError: fsType & 0x0001 bit is reserved. must be zero!")
+        fontfile.close()
+        exit()
+
+    if((wanted_fsType & 0x0002) and ((wanted_fsType & 0x0004) or (wanted_fsType & 0x0008))):
+        print ("\nError: fsType & 0x0002 bit set, and (embedding allowed 0x0004 or 0x0008)")
+        fontfile.close()
+        exit()
+    if(wanted_fsType == tab_fsType):
+        print ("\nNothing to do... wanted fsType " + hex(wanted_fsType) + " already stored in TTF file!")
+        fontfile.close()
+        exit()
+
+    print ("- TTF filesize: '" + str(ttf_filesize) + "' bytes")
+
+    fontfile.seek(0)
+
+    ttf_allbytes = fileBytes(fontfile, ttf_filesize)
+    bytesread = len(ttf_allbytes)
+
+    if bytesread != ttf_filesize:
+        print ("\nError: Could not read " + ttf_filesize + " bytes from fontfile (read: " + bytesread + ")")
+        fontfile.close()
+        exit()
+
+    print ("- OK: read: '" + str(bytesread) + "' bytes from file")
+
